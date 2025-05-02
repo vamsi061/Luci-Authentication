@@ -1,0 +1,13 @@
+Users table
+===========
+
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    dob DATE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    full_name VARCHAR(255) NOT NULL,
+    password VARCHAR(255),
+    phone VARCHAR(20),
+    profile_image_url VARCHAR(255),
+    role VARCHAR(50)
+);
