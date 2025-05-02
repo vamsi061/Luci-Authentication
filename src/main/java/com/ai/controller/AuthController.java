@@ -4,6 +4,7 @@ import com.ai.dto.AuthRequest;
 import com.ai.dto.AuthResponse;
 import com.ai.dto.RegisterRequest;
 import com.ai.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,20 +19,19 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
+
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<Map<String,String>> register(@RequestBody RegisterRequest request) {
-        authService.register(request);
-        Map<String,String> response = new HashMap<>();
-        response.put("message","User registered successfully");
+    public ResponseEntity<Map<String, String>> register(@RequestBody @Valid RegisterRequest request) {
+        Map<String, String> response = new HashMap<>();
+        response.put("message", authService.register(request));
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+    public ResponseEntity<AuthResponse> login(@RequestBody @Valid AuthRequest request) {
+        AuthResponse response = authService.login(request);
+        return ResponseEntity.ok(response);
     }
-
 }
-

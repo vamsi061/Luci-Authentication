@@ -7,55 +7,33 @@ import com.ai.exception.AppException;
 import com.ai.model.Role;
 import com.ai.model.User;
 import com.ai.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.validation.annotation.Validated;
 
 import java.util.Collections;
 
 @Service
-@RequiredArgsConstructor
+@Validated
 public class AuthService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
-    public String register(RegisterRequest request) {
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already exists");
+    // Injecting PasswordEncoder directly into AuthService
+    @Autowired
+    @Lazy
+    private PasswordEncoder passwordEncoder;
 
-        }
-
-        User user = User.builder()
-                .fullName(request.getFullName())
-                .email(request.getEmail())
-                .password(request.getPassword()) // Use encoder if needed
-                .role(Role.USER)
-                .build();
-
-        userRepository.save(user);
-        return "User registered successfully";
-    }
-
-    public AuthResponse login(AuthRequest request) {
-        // Authentication logic can be added here later
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
-        // You should ideally verify the password manually or via AuthenticationManager
-
-        String token = "Login success";
-        return new AuthResponse(token);
-    }
-
-    public String generateGravatarUrl(String email) {
-        String hash = DigestUtils.md5DigestAsHex(email.trim().toLowerCase().getBytes());
-        return "https://www.gravatar.com/avatar/" + hash + "?d=identicon";
+    public AuthService(UserRepository userRepository) {
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -68,5 +46,40 @@ public class AuthService implements UserDetailsService {
                 user.getPassword(),
                 Collections.singleton(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
         );
+    }
+
+    public String register(RegisterRequest request) {
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new AppException("User already exists", HttpStatus.BAD_REQUEST.value());
+        }
+        String encodedPassword = passwordEncoder.encode(request.getPassword());
+
+        User user = User.builder()
+                .fullName(request.getFullName())
+                .email(request.getEmail())
+                .password(encodedPassword)
+                .role(Role.USER)
+                .build();
+
+        userRepository.save(user);
+        return "User registered successfully";
+    }
+
+
+    public AuthResponse login(AuthRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new AppException("User not found", HttpStatus.NOT_FOUND.value()));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new AppException("Invalid password", HttpStatus.UNAUTHORIZED.value());
+        }
+
+        String token = "Login success"; // JWT token generation would go here
+        return new AuthResponse(token, "Login successful");
+    }
+
+    public String generateGravatarUrl(String email) {
+        String hash = DigestUtils.md5DigestAsHex(email.trim().toLowerCase().getBytes());
+        return "https://www.gravatar.com/avatar/" + hash + "?d=identicon";
     }
 }
